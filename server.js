@@ -431,6 +431,26 @@ app.post('/suscribir/:storeId', async (req, res) => {
 // ---------------------------------------------------------------------
 // Panel de administración — lista de productos con gente anotada.
 // ---------------------------------------------------------------------
+// TN no le agrega el store_id a la URL del iframe cuando la app está
+// "integrada al administrador" — llega literal /admin pelado. Sin esta
+// ruta, esa entrada del menú lateral tira 404 (Cannot GET /admin).
+// Mismo parche que ya usa Ruleta: selector de tienda como fallback.
+app.get('/admin', async (req, res) => {
+  const tiendas = await listarTiendas();
+  const filas = tiendas.map((t) => `
+    <a class="fila-tienda" href="/admin/${t.store_id}">Tienda ${t.store_id}</a>
+  `).join('') || '<p>Todavía no hay tiendas instaladas.</p>';
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Aviso de Stock</title>
+<style>
+  body{ font-family:sans-serif; background:#12201B; color:#F1EAD9; padding:40px; }
+  .fila-tienda{ display:block; padding:14px; margin-bottom:8px; background:#1B3026; border-radius:10px; color:#F1EAD9; text-decoration:none; }
+</style></head>
+<body><h1>Elegí tu tienda</h1>${filas}</body>
+</html>`);
+});
+
 app.get('/admin/:storeId', async (req, res) => {
   const storeId = req.params.storeId;
   const tienda = await leerTienda(storeId);
