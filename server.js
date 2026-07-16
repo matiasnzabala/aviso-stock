@@ -162,8 +162,11 @@ async function resumenPorTienda(storeId) {
     return [];
   }
   const conteo = {};
+  const emailsPorProducto = {};
   (subs || []).forEach((s) => {
     conteo[s.product_id] = (conteo[s.product_id] || 0) + 1;
+    if (!emailsPorProducto[s.product_id]) emailsPorProducto[s.product_id] = [];
+    emailsPorProducto[s.product_id].push(s.email);
   });
   const productIds = Object.keys(conteo);
   if (productIds.length === 0) return [];
@@ -178,6 +181,7 @@ async function resumenPorTienda(storeId) {
   return (productos || []).map((p) => ({
     ...p,
     suscriptores: conteo[p.product_id] || 0,
+    emails: emailsPorProducto[p.product_id] || [],
   }));
 }
 
@@ -504,6 +508,9 @@ app.get('/admin/:storeId', async (req, res) => {
         <td>${p.stock === null || p.stock === undefined ? '—' : p.stock}</td>
         <td><strong>${p.suscriptores}</strong></td>
         <td>${p.link ? `<a href="${p.link}" target="_blank" rel="noopener">Ver</a>` : ''}</td>
+      </tr>
+      <tr>
+        <td colspan="4" class="fila-emails">${(p.emails || []).join(', ')}</td>
       </tr>`)
     .join('') || '<tr><td colspan="4" class="vacio">Todavía nadie se anotó a ningún producto.</td></tr>';
 
@@ -534,6 +541,7 @@ app.get('/admin/:storeId', async (req, res) => {
   tr:last-child td{ border-bottom:none; }
   a{ color:var(--amber); }
   .vacio{ color:var(--ink-dim); text-align:center; padding:32px 16px; }
+  .fila-emails{ color:var(--ink-dim); font-size:0.8rem; font-family:'IBM Plex Mono', monospace; padding-top:0 !important; padding-bottom:16px !important; }
   .install-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px 24px; margin-top:28px; }
   .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; }
   .install-text code{ background:#0C1712; padding:2px 6px; border-radius:4px; font-family:'IBM Plex Mono', monospace; font-size:0.8rem; color:var(--amber); }
