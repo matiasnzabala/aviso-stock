@@ -329,11 +329,12 @@ app.get('/cron/sync', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------
-// Script para pegar UNA VEZ en la plantilla de producto del theme.
-// Detecta el producto por el handle en la URL (/producto/{handle}),
-// consulta nuestro cache, y si no hay stock inserta el formulario
-// dentro de <div id="aviso-stock-widget"></div> (el comerciante pone
-// ese div donde quiera que aparezca, una sola vez en la plantilla).
+// Script GLOBAL (se pega UNA VEZ en el código personalizado del theme,
+// igual que el embed.js de Ruleta — TN no permite código por plantilla
+// específica). Corre en todas las páginas, solo actúa si es un producto
+// sin stock. Se auto-inserta: busca el botón de comprar/agregar al
+// carrito y pone el formulario justo después; si no lo encuentra, cae
+// a una tarjeta flotante fija en la esquina (no tapa nada más).
 // ---------------------------------------------------------------------
 app.get('/widget.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
@@ -357,13 +358,42 @@ app.get('/widget.js', (req, res) => {
   if (!m) return; // no es una página de producto, no hacemos nada
   var handle = decodeURIComponent(m[1]);
 
+  function buscarBotonCompra() {
+    var candidatos = document.querySelectorAll('button, a, input[type="submit"]');
+    var regex = /agregar al carrito|añadir al carrito|comprar ahora|agregar|comprar/i;
+    for (var i = 0; i < candidatos.length; i++) {
+      var texto = (candidatos[i].textContent || candidatos[i].value || '').trim();
+      if (regex.test(texto)) return candidatos[i];
+    }
+    return null;
+  }
+
+  function crearContenedor() {
+    var boton = buscarBotonCompra();
+    var contenedor = document.createElement('div');
+    contenedor.id = 'aviso-stock-widget';
+
+    if (boton && boton.parentNode) {
+      contenedor.style.cssText = 'margin-top:12px;font-family:sans-serif;max-width:360px;';
+      boton.parentNode.insertBefore(contenedor, boton.nextSibling);
+    } else {
+      // No encontramos el botón de compra en el theme: tarjeta flotante
+      // fija, chica, no tapa el resto de la página.
+      contenedor.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:999999;' +
+        'background:#fff;border:1px solid #ddd;border-radius:12px;padding:16px;' +
+        'box-shadow:0 8px 24px rgba(0,0,0,0.15);font-family:sans-serif;max-width:300px;';
+      document.body.appendChild(contenedor);
+    }
+    return contenedor;
+  }
+
   function render(contenedor, producto) {
     contenedor.innerHTML =
-      '<div style="font-family:sans-serif;max-width:360px;">' +
+      '<div>' +
         '<p style="margin:0 0 8px;font-size:0.9rem;color:#555;">Sin stock. Te avisamos por mail cuando vuelva.</p>' +
         '<div style="display:flex;gap:8px;">' +
-          '<input id="aviso-stock-email" type="email" placeholder="Tu email" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:0.9rem;" />' +
-          '<button id="aviso-stock-btn" style="background:#E8632C;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;">Avisame</button>' +
+          '<input id="aviso-stock-email" type="email" placeholder="Tu email" style="flex:1;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:0.9rem;min-width:0;" />' +
+          '<button id="aviso-stock-btn" style="background:#E8632C;color:#fff;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600;flex:none;">Avisame</button>' +
         '</div>' +
         '<p id="aviso-stock-msg" style="margin:8px 0 0;font-size:0.85rem;"></p>' +
       '</div>';
@@ -385,7 +415,7 @@ app.get('/widget.js', (req, res) => {
         .then(function (data) {
           msg.style.color = '#1b7a3d';
           msg.textContent = data.yaExistia ? 'Ya estabas anotado con este email.' : '¡Listo! Te avisamos por mail apenas vuelva.';
-          contenedor.querySelector('div > div').style.display = 'none';
+          contenedor.querySelector('div').style.display = 'none';
         })
         .catch(function () {
           msg.style.color = '#c0392b';
@@ -399,9 +429,7 @@ app.get('/widget.js', (req, res) => {
     .then(function (producto) {
       if (!producto || !producto.stock_management) return; // no controla stock, no mostramos nada
       if (producto.stock > 0) return; // hay stock, no mostramos nada
-      var contenedor = document.getElementById('aviso-stock-widget');
-      if (!contenedor) return;
-      render(contenedor, producto);
+      render(crearContenedor(), producto);
     })
     .catch(function () {});
 })();
@@ -511,8 +539,7 @@ app.get('/admin/:storeId', async (req, res) => {
       <tbody>${filas}</tbody>
     </table>
     <div class="install-card">
-      <p class="install-text">Pegá esto UNA VEZ en la plantilla de producto de tu theme, donde quieras que aparezca el aviso:<br><br>
-      <code>&lt;div id="aviso-stock-widget"&gt;&lt;/div&gt;</code><br>
+      <p class="install-text">Pegá esto UNA VEZ en el código personalizado de tu tema (el mismo lugar donde va cualquier script global, antes de <code>&lt;/body&gt;</code>). Se muestra solo en páginas de producto sin stock, no hace falta tocar nada más:<br><br>
       <code>&lt;script src="${APP_BASE_URL}/widget.js?store=${storeId}" defer&gt;&lt;/script&gt;</code></p>
     </div>
   </div>
