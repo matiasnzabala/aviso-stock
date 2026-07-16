@@ -5,6 +5,16 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(express.json());
+app.use((req, res, next) => {
+  // /product-info y /suscribir los llama el widget.js desde cualquier
+  // tienda instalada (otro dominio) — hace falta responder el preflight
+  // OPTIONS o el navegador bloquea el POST antes de que llegue acá.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(express.urlencoded({ extended: true }));
 
 const {
