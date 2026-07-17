@@ -561,12 +561,14 @@ app.get('/admin', async (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aviso de Stock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  body{ font-family:'Public Sans', sans-serif; background:#12201B; color:#F1EAD9; padding:40px 20px; }
-  h1{ font-family:Georgia, serif; margin-bottom:8px; }
-  p{ color:#A9B8AC; margin-bottom:24px; }
-  .fila-tienda{ display:block; padding:16px; margin-bottom:10px; background:#1B3026; border-radius:12px; color:#F1EAD9; text-decoration:none; font-weight:600; }
-  .fila-tienda:hover{ background:#22392E; }
+  body{ font-family:'Space Grotesk', sans-serif; font-weight:500; background:#fdf9f0; color:#111111; padding:40px 20px; }
+  h1{ font-family:'Archivo Black', sans-serif; font-weight:400; text-transform:uppercase; font-size:1.5rem; margin-bottom:8px; }
+  p{ color:#5b5648; margin-bottom:24px; }
+  .fila-tienda{ display:block; padding:16px; margin-bottom:12px; background:#ffffff; border:2px solid #111111; box-shadow:4px 4px 0px 0px #111111; border-radius:14px; color:#111111; text-decoration:none; font-weight:700; transition:transform .12s ease; }
+  .fila-tienda:hover{ transform:translate(-2px,-2px); box-shadow:6px 6px 0px 0px #111111; }
 </style></head>
 <body>
   <h1>🎡 Elegí tu tienda</h1>
@@ -608,30 +610,30 @@ app.get('/admin/:storeId', async (req, res) => {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aviso de Stock — Panel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#12201B; --bg-card:#1B3026;
-    --ink:#F1EAD9; --ink-dim:#A9B8AC;
-    --amber:#E8A33D; --coral:#E8632C;
-    --border:rgba(241,234,217,0.10);
+    --bg:#fdf9f0; --bg-alt:#f4f0e4; --bg-card:#ffffff;
+    --ink:#111111; --ink-dim:#5b5648;
+    --pink:#ff3d81; --coral:#ff6b5e; --mint:#3ddc97; --canary:#ffd23f;
+    --sh-sm:4px 4px 0px 0px #111111;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
-  body{ background:var(--bg); color:var(--ink); font-family:'Public Sans', sans-serif; padding:40px 20px 80px; }
+  body{ background:var(--bg); color:var(--ink); font-family:'Space Grotesk', sans-serif; font-weight:500; padding:40px 20px 80px; }
   .wrap{ max-width:760px; margin:0 auto; }
-  .eyebrow{ font-family:'IBM Plex Mono', monospace; text-transform:uppercase; letter-spacing:0.12em; font-size:0.7rem; color:var(--amber); display:block; margin-bottom:10px; }
-  h1{ font-family:'Fraunces', serif; font-weight:600; font-size:1.7rem; margin-bottom:8px; }
-  .subtitle{ color:var(--ink-dim); font-size:0.95rem; margin-bottom:28px; max-width:60ch; }
-  table{ width:100%; border-collapse:collapse; background:var(--bg-card); border-radius:14px; overflow:hidden; }
-  th{ text-align:left; font-family:'IBM Plex Mono', monospace; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.08em; color:var(--ink-dim); padding:14px 16px; border-bottom:1px solid var(--border); }
-  td{ padding:14px 16px; border-bottom:1px solid var(--border); font-size:0.92rem; }
+  .eyebrow{ font-family:'Space Mono', monospace; text-transform:uppercase; letter-spacing:0.1em; font-size:0.7rem; color:var(--pink); font-weight:700; display:block; margin-bottom:10px; }
+  h1{ font-family:'Archivo Black', sans-serif; font-weight:400; text-transform:uppercase; font-size:1.5rem; margin-bottom:8px; }
+  .subtitle{ color:var(--ink-dim); font-size:0.95rem; margin-bottom:28px; max-width:60ch; font-weight:500; }
+  table{ width:100%; border-collapse:collapse; background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; overflow:hidden; }
+  th{ text-align:left; font-family:'Space Mono', monospace; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em; color:var(--ink-dim); font-weight:700; padding:14px 16px; border-bottom:2px solid var(--ink); }
+  td{ padding:14px 16px; border-bottom:1px solid #e3ddc9; font-size:0.92rem; }
   tr:last-child td{ border-bottom:none; }
-  a{ color:var(--amber); }
+  a{ color:var(--pink); font-weight:700; }
   .vacio{ color:var(--ink-dim); text-align:center; padding:32px 16px; }
-  .fila-emails{ color:var(--ink-dim); font-size:0.8rem; font-family:'IBM Plex Mono', monospace; padding-top:0 !important; padding-bottom:16px !important; }
-  .install-card{ background:var(--bg-card); border:1px solid var(--border); border-radius:14px; padding:20px 24px; margin-top:28px; }
-  .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; }
-  .install-text code{ background:#0C1712; padding:2px 6px; border-radius:4px; font-family:'IBM Plex Mono', monospace; font-size:0.8rem; color:var(--amber); }
+  .fila-emails{ color:var(--ink-dim); font-size:0.8rem; font-family:'Space Mono', monospace; padding-top:0 !important; padding-bottom:16px !important; }
+  .install-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:20px 24px; margin-top:28px; }
+  .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; font-weight:500; }
+  .install-text code{ background:var(--canary); padding:2px 6px; border-radius:4px; border:1px solid var(--ink); font-family:'Space Mono', monospace; font-size:0.8rem; color:var(--ink); }
 </style>
 </head>
 <body>
