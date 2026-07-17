@@ -27,6 +27,8 @@ const {
   RESEND_API_KEY,
   EMAIL_FROM = 'Aviso de Stock <onboarding@resend.dev>',
   CRON_KEY = 'cambiar-esta-clave',
+  TRIAL_DIAS = 7,
+  MP_PREAPPROVAL_PLAN_ID = 'c2accdd57a7e4f6a8bd5b86b8e3a5206',
   PORT = 3000,
 } = process.env;
 
@@ -82,13 +84,42 @@ function agregarTiendaYSetearCookie(req, res, nuevoStoreId) {
 // Tiendas instaladas
 // ---------------------------------------------------------------------
 async function guardarTienda(storeId, accessToken, scope) {
-  const { error } = await supabase.from('stock_tiendas').upsert({
+  // Solo se pisa trial_ends_at/pago si la tienda es nueva (primera
+  // instalación). Si ya existía (reinstalación), se preservan esos
+  // valores para no regalar un trial nuevo cada vez que reinstalan.
+  const existente = await leerTienda(storeId);
+
+  const registro = {
     store_id: storeId,
     access_token: accessToken,
     scope,
     instalada_en: new Date().toISOString(),
-  });
+  };
+
+  if (!existente) {
+    const dias = Number(TRIAL_DIAS) || 7;
+    registro.trial_ends_at = new Date(Date.now() + dias * 24 * 60 * 60 * 1000).toISOString();
+    registro.pago = false;
+  }
+
+  const { error } = await supabase.from('stock_tiendas').upsert(registro);
   if (error) console.error('Error guardando tienda:', error);
+}
+
+// Acceso pago/trial: "pago" se activa solo, vía webhook de Mercado
+// Pago (ver /webhook/mercadopago). Mientras no pague, tiene acceso
+// hasta que vence trial_ends_at.
+function tieneAccesoActivo(tienda) {
+  if (!tienda) return false;
+  if (tienda.pago === true) return true;
+  if (!tienda.trial_ends_at) return true; // tiendas viejas sin trial cargado: no cortar de golpe
+  return new Date(tienda.trial_ends_at).getTime() > Date.now();
+}
+
+function diasRestantesTrial(tienda) {
+  if (!tienda || !tienda.trial_ends_at) return null;
+  const ms = new Date(tienda.trial_ends_at).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
 }
 
 async function leerTienda(storeId) {
@@ -516,6 +547,8 @@ app.get('/product-info/:storeId', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   const { handle } = req.query;
   if (!handle) return res.status(400).json({ error: 'falta handle' });
+  const tienda = await leerTienda(req.params.storeId);
+  if (!tienda || !tieneAccesoActivo(tienda)) return res.status(403).json({ error: 'trial vencido' });
   const producto = await leerProductoPorHandle(req.params.storeId, handle);
   if (!producto) return res.status(404).json({ error: 'producto no encontrado en cache' });
   res.json(producto);
@@ -587,6 +620,27 @@ app.get('/admin/:storeId', async (req, res) => {
   const tienda = await leerTienda(storeId);
   if (!tienda) return res.status(404).send('Tienda no encontrada o app no instalada.');
 
+  const accesoActivo = tieneAccesoActivo(tienda);
+  const diasRestantes = diasRestantesTrial(tienda);
+  const linkPago = `https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=${MP_PREAPPROVAL_PLAN_ID}&external_reference=aviso:${storeId}`;
+
+  let bannerTrial = '';
+  if (tienda.pago !== true) {
+    if (accesoActivo && diasRestantes !== null) {
+      bannerTrial = `
+        <div class="trial-banner ${diasRestantes <= 2 ? 'trial-banner--urgente' : ''}">
+          <span>🕒 Trial: te quedan <strong>${diasRestantes}</strong> día${diasRestantes === 1 ? '' : 's'}.</span>
+          <a href="${linkPago}" target="_blank" rel="noopener">Activar plan pago</a>
+        </div>`;
+    } else if (!accesoActivo) {
+      bannerTrial = `
+        <div class="trial-banner trial-banner--vencido">
+          <span>🔒 Trial vencido. El widget no se muestra en tu tienda hasta que actives el plan pago.</span>
+          <a href="${linkPago}" target="_blank" rel="noopener">Activar plan pago</a>
+        </div>`;
+    }
+  }
+
   const resumen = await resumenPorTienda(storeId);
 
   const filas = resumen
@@ -630,6 +684,19 @@ app.get('/admin/:storeId', async (req, res) => {
   tr:last-child td{ border-bottom:none; }
   a{ color:var(--pink); font-weight:700; }
   .vacio{ color:var(--ink-dim); text-align:center; padding:32px 16px; }
+  .trial-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    flex-wrap:wrap; margin-bottom:24px; padding:14px 18px; border-radius:14px;
+    background:var(--canary); border:2px solid var(--ink); box-shadow:var(--sh-sm);
+    font-size:0.9rem; color:var(--ink); font-weight:600;
+  }
+  .trial-banner--urgente{ background:var(--coral); }
+  .trial-banner--vencido{ background:var(--coral); }
+  .trial-banner a{
+    background:var(--ink); color:var(--bg); text-decoration:none;
+    padding:9px 18px; border-radius:999px; font-weight:700; font-size:0.85rem;
+    white-space:nowrap; border:2px solid var(--ink);
+  }
   .fila-emails{ color:var(--ink-dim); font-size:0.8rem; font-family:'Space Mono', monospace; padding-top:0 !important; padding-bottom:16px !important; }
   .install-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:20px 24px; margin-top:28px; }
   .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; font-weight:500; }
@@ -645,6 +712,7 @@ app.get('/admin/:storeId', async (req, res) => {
   <div class="wrap">
     <span class="eyebrow">Aviso de Stock · Tienda ${storeId}</span>
     <h1>Productos esperados</h1>
+    ${bannerTrial}
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
     <table>
       <thead><tr><th>Producto</th><th>Stock actual</th><th>Anotados</th><th></th></tr></thead>
