@@ -634,6 +634,11 @@ app.get('/admin/:storeId', async (req, res) => {
   .install-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:20px 24px; margin-top:28px; }
   .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; font-weight:500; }
   .install-text code{ background:var(--canary); padding:2px 6px; border-radius:4px; border:1px solid var(--ink); font-family:'Space Mono', monospace; font-size:0.8rem; color:var(--ink); }
+  .admin-footer{ margin-top:40px; padding-top:24px; border-top:2px solid var(--ink); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+  .admin-footer .brand{ font-family:'Space Mono', monospace; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim); }
+  .admin-footer .brand a{ color:var(--ink); font-weight:700; text-decoration:underline; }
+  .admin-footer .soporte{ display:inline-flex; align-items:center; gap:6px; background:var(--mint); color:var(--ink); border:2px solid var(--ink); padding:8px 16px; border-radius:999px; font-weight:700; font-size:0.82rem; box-shadow:var(--sh-sm); text-decoration:none; transition:transform .1s ease; }
+  .admin-footer .soporte:hover{ transform:translate(-1px,-1px); }
 </style>
 </head>
 <body>
@@ -648,6 +653,10 @@ app.get('/admin/:storeId', async (req, res) => {
     <div class="install-card">
       <p class="install-text">Pegá esto UNA VEZ en el código personalizado de tu tema (el mismo lugar donde va cualquier script global, antes de <code>&lt;/body&gt;</code>). Se muestra solo en páginas de producto sin stock, no hace falta tocar nada más:<br><br>
       <code>&lt;script src="${APP_BASE_URL}/widget.js?store=${storeId}" defer&gt;&lt;/script&gt;</code></p>
+    </div>
+    <div class="admin-footer">
+      <span class="brand">Una app de <a href="https://hacecrecertutienda.com" target="_blank" rel="noopener">hacecrecertutienda.com</a></span>
+      <a class="soporte" href="https://wa.me/5490000000000" target="_blank" rel="noopener">💬 Soporte por WhatsApp</a>
     </div>
   </div>
 </body>
