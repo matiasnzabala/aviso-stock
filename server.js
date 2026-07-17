@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
@@ -31,6 +32,41 @@ const {
 
 const USER_AGENT = `AvisoDeStock (${APP_BASE_URL})`;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ---------------------------------------------------------------------
+// Sesión de tienda vía cookie firmada. TN no manda el store_id en la
+// URL del iframe embebido, así que sin esto cualquiera que entre a
+// /admin/:storeId adivinando un número vería datos de OTRA tienda
+// (emails anotados). La cookie se firma con TN_CLIENT_SECRET (HMAC) —
+// nadie puede fabricarse una para otra tienda sin esa clave.
+// ---------------------------------------------------------------------
+function firmarStoreId(storeId) {
+  const firma = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(storeId).digest('hex');
+  return `${storeId}.${firma}`;
+}
+
+function leerStoreIdDeCookie(req) {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  const match = header.split(';').map((p) => p.trim()).find((p) => p.startsWith('store_session='));
+  if (!match) return null;
+  const valor = decodeURIComponent(match.slice('store_session='.length));
+  const idx = valor.lastIndexOf('.');
+  if (idx === -1) return null;
+  const storeId = valor.slice(0, idx);
+  const firma = valor.slice(idx + 1);
+  const esperada = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(storeId).digest('hex');
+  if (firma.length !== esperada.length) return null;
+  const coincide = crypto.timingSafeEqual(Buffer.from(firma), Buffer.from(esperada));
+  return coincide ? storeId : null;
+}
+
+function setearCookieSesion(res, storeId) {
+  const valor = encodeURIComponent(firmarStoreId(storeId));
+  // SameSite=None + Secure porque esto vive dentro de un iframe cross-site
+  // (el admin de TiendaNegocio embebe nuestra URL).
+  res.setHeader('Set-Cookie', `store_session=${valor}; HttpOnly; Secure; SameSite=None; Max-Age=31536000; Path=/`);
+}
 
 // ---------------------------------------------------------------------
 // Tiendas instaladas
@@ -269,6 +305,7 @@ app.get('/callback', async (req, res) => {
 
     await guardarTienda(store_id, access_token, scope);
     console.log(`✅ Tienda ${store_id} instaló Aviso de Stock.`);
+    setearCookieSesion(res, store_id);
     res.redirect(`/admin/${store_id}`);
   } catch (err) {
     console.error('Error en /callback:', err);
@@ -476,25 +513,21 @@ app.post('/suscribir/:storeId', async (req, res) => {
 // TN no le agrega el store_id a la URL del iframe cuando la app está
 // "integrada al administrador" — llega literal /admin pelado. Sin esta
 // ruta, esa entrada del menú lateral tira 404 (Cannot GET /admin).
-// Mismo parche que ya usa Ruleta: selector de tienda como fallback.
+// Mismo parche que ya usa Ruleta, pero SIN listar todas las tiendas
+// (eso filtraba datos entre comerciantes distintos). Usa la cookie de
+// sesión seteada en /callback para saber a qué tienda redirigir.
 app.get('/admin', async (req, res) => {
-  const tiendas = await listarTiendas();
-  const filas = tiendas.map((t) => `
-    <a class="fila-tienda" href="/admin/${t.store_id}">Tienda ${t.store_id}</a>
-  `).join('') || '<p>Todavía no hay tiendas instaladas.</p>';
-  res.send(`<!DOCTYPE html>
-<html lang="es">
-<head><meta charset="UTF-8"><title>Aviso de Stock</title>
-<style>
-  body{ font-family:sans-serif; background:#12201B; color:#F1EAD9; padding:40px; }
-  .fila-tienda{ display:block; padding:14px; margin-bottom:8px; background:#1B3026; border-radius:10px; color:#F1EAD9; text-decoration:none; }
-</style></head>
-<body><h1>Elegí tu tienda</h1>${filas}</body>
-</html>`);
+  const storeId = leerStoreIdDeCookie(req);
+  if (storeId) return res.redirect(`/admin/${storeId}`);
+  res.status(401).send('No pudimos identificar tu tienda. Volvé a abrir la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
 });
 
 app.get('/admin/:storeId', async (req, res) => {
   const storeId = req.params.storeId;
+  const storeIdSesion = leerStoreIdDeCookie(req);
+  if (storeIdSesion !== storeId) {
+    return res.status(403).send('No autorizado. Abrí la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
+  }
   const tienda = await leerTienda(storeId);
   if (!tienda) return res.status(404).send('Tienda no encontrada o app no instalada.');
 
