@@ -334,9 +334,7 @@ app.get('/', (req, res) => {
 // que un producto pasó de sin-stock a con-stock.
 // Protegido con CRON_KEY para que no lo dispare cualquiera.
 // ---------------------------------------------------------------------
-app.get('/cron/sync', async (req, res) => {
-  if (req.query.key !== CRON_KEY) return res.status(403).json({ error: 'clave inválida' });
-
+async function sincronizarTodasLasTiendas() {
   const tiendas = await listarTiendas();
   const resumen = [];
 
@@ -387,7 +385,23 @@ app.get('/cron/sync', async (req, res) => {
     }
   }
 
-  res.json({ ok: true, avisos_enviados: resumen });
+  console.log('✅ Sync de stock terminado.', JSON.stringify(resumen));
+  return resumen;
+}
+
+// El endpoint responde YA (antes de 1seg) y sigue trabajando en
+// background. cron-job.org (plan gratis) corta a los 30s como máximo
+// y con varias tiendas/productos el recorrido real puede tardar más
+// que eso — si el cron espera la respuesta, siempre da timeout aunque
+// el sync haya funcionado bien igual del lado del server.
+app.get('/cron/sync', (req, res) => {
+  if (req.query.key !== CRON_KEY) return res.status(403).json({ error: 'clave inválida' });
+
+  res.json({ ok: true, iniciado: true, nota: 'sync corriendo en background, revisá los logs de Render para el resultado' });
+
+  sincronizarTodasLasTiendas().catch((err) => {
+    console.error('Error en sincronizarTodasLasTiendas:', err);
+  });
 });
 
 // ---------------------------------------------------------------------
