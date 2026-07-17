@@ -39,31 +39,40 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // /admin/:storeId adivinando un número vería datos de OTRA tienda
 // (emails anotados). La cookie se firma con TN_CLIENT_SECRET (HMAC) —
 // nadie puede fabricarse una para otra tienda sin esa clave.
+//
+// Guarda una LISTA de tiendas (no una sola): si instalás/abrís más de
+// una tienda en el mismo navegador, la cookie anterior pisaba la
+// anterior y el panel te mostraba SIEMPRE la última, aunque el iframe
+// estuviera embebido en la tienda vieja (TN no manda qué tienda es).
+// Con lista, si hay más de una, /admin obliga a elegir en vez de
+// adivinar mal.
 // ---------------------------------------------------------------------
-function firmarStoreId(storeIdEntrada) {
-  const storeId = String(storeIdEntrada);
-  const firma = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(storeId).digest('hex');
-  return `${storeId}.${firma}`;
+function firmarLista(valor) {
+  const firma = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(valor).digest('hex');
+  return `${valor}.${firma}`;
 }
 
-function leerStoreIdDeCookie(req) {
+function leerTiendasDeCookie(req) {
   const header = req.headers.cookie;
-  if (!header) return null;
+  if (!header) return [];
   const match = header.split(';').map((p) => p.trim()).find((p) => p.startsWith('store_session='));
-  if (!match) return null;
-  const valor = decodeURIComponent(match.slice('store_session='.length));
-  const idx = valor.lastIndexOf('.');
-  if (idx === -1) return null;
-  const storeId = valor.slice(0, idx);
-  const firma = valor.slice(idx + 1);
-  const esperada = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(storeId).digest('hex');
-  if (firma.length !== esperada.length) return null;
+  if (!match) return [];
+  const cookieVal = decodeURIComponent(match.slice('store_session='.length));
+  const idx = cookieVal.lastIndexOf('.');
+  if (idx === -1) return [];
+  const valor = cookieVal.slice(0, idx);
+  const firma = cookieVal.slice(idx + 1);
+  const esperada = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(valor).digest('hex');
+  if (firma.length !== esperada.length) return [];
   const coincide = crypto.timingSafeEqual(Buffer.from(firma), Buffer.from(esperada));
-  return coincide ? storeId : null;
+  if (!coincide) return [];
+  return valor.split(',').filter(Boolean);
 }
 
-function setearCookieSesion(res, storeId) {
-  const valor = encodeURIComponent(firmarStoreId(storeId));
+function agregarTiendaYSetearCookie(req, res, nuevoStoreId) {
+  const actuales = leerTiendasDeCookie(req);
+  if (!actuales.includes(String(nuevoStoreId))) actuales.push(String(nuevoStoreId));
+  const valor = encodeURIComponent(firmarLista(actuales.join(',')));
   // SameSite=None + Secure porque esto vive dentro de un iframe cross-site
   // (el admin de TiendaNegocio embebe nuestra URL).
   res.setHeader('Set-Cookie', `store_session=${valor}; HttpOnly; Secure; SameSite=None; Max-Age=31536000; Path=/`);
@@ -307,7 +316,7 @@ app.get('/callback', async (req, res) => {
 
     await guardarTienda(store_id, access_token, scope);
     console.log(`✅ Tienda ${store_id} instaló Aviso de Stock.`);
-    setearCookieSesion(res, store_id);
+    agregarTiendaYSetearCookie(req, res, store_id);
     res.redirect(`/admin/${store_id}`);
   } catch (err) {
     console.error('Error en /callback:', err);
@@ -515,19 +524,48 @@ app.post('/suscribir/:storeId', async (req, res) => {
 // TN no le agrega el store_id a la URL del iframe cuando la app está
 // "integrada al administrador" — llega literal /admin pelado. Sin esta
 // ruta, esa entrada del menú lateral tira 404 (Cannot GET /admin).
-// Mismo parche que ya usa Ruleta, pero SIN listar todas las tiendas
-// (eso filtraba datos entre comerciantes distintos). Usa la cookie de
-// sesión seteada en /callback para saber a qué tienda redirigir.
+//
+// Usa la lista de tiendas de la cookie de sesión: si es 1 sola,
+// redirige directo (comportamiento de siempre). Si hay MÁS de una en
+// el mismo navegador, NUNCA adivina cuál está embebida — TN no lo
+// dice — y muestra selector para elegir.
 app.get('/admin', async (req, res) => {
-  const storeId = leerStoreIdDeCookie(req);
-  if (storeId) return res.redirect(`/admin/${storeId}`);
-  res.status(401).send('No pudimos identificar tu tienda. Volvé a abrir la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
+  const tiendas = leerTiendasDeCookie(req);
+
+  if (tiendas.length === 0) {
+    return res.status(401).send('No pudimos identificar tu tienda. Volvé a abrir la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
+  }
+
+  if (tiendas.length === 1) {
+    return res.redirect(`/admin/${tiendas[0]}`);
+  }
+
+  const filas = tiendas
+    .map((id) => `<a class="fila-tienda" href="/admin/${id}">Tienda ${id}</a>`)
+    .join('');
+
+  res.send(`<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aviso de Stock</title>
+<style>
+  body{ font-family:'Public Sans', sans-serif; background:#12201B; color:#F1EAD9; padding:40px 20px; }
+  h1{ font-family:Georgia, serif; margin-bottom:8px; }
+  p{ color:#A9B8AC; margin-bottom:24px; }
+  .fila-tienda{ display:block; padding:16px; margin-bottom:10px; background:#1B3026; border-radius:12px; color:#F1EAD9; text-decoration:none; font-weight:600; }
+  .fila-tienda:hover{ background:#22392E; }
+</style></head>
+<body>
+  <h1>🎡 Elegí tu tienda</h1>
+  <p>Seleccioná la tienda para ver los productos esperados.</p>
+  ${filas}
+</body>
+</html>`);
 });
 
 app.get('/admin/:storeId', async (req, res) => {
   const storeId = req.params.storeId;
-  const storeIdSesion = leerStoreIdDeCookie(req);
-  if (storeIdSesion !== storeId) {
+  const tiendasPermitidas = leerTiendasDeCookie(req);
+  if (!tiendasPermitidas.includes(storeId)) {
     return res.status(403).send('No autorizado. Abrí la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
   }
   const tienda = await leerTienda(storeId);
