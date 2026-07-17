@@ -40,7 +40,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // (emails anotados). La cookie se firma con TN_CLIENT_SECRET (HMAC) —
 // nadie puede fabricarse una para otra tienda sin esa clave.
 // ---------------------------------------------------------------------
-function firmarStoreId(storeId) {
+function firmarStoreId(storeIdEntrada) {
+  const storeId = String(storeIdEntrada);
   const firma = crypto.createHmac('sha256', TN_CLIENT_SECRET).update(storeId).digest('hex');
   return `${storeId}.${firma}`;
 }
@@ -297,11 +298,12 @@ app.get('/callback', async (req, res) => {
       return res.status(500).send('No se pudo completar la instalación.');
     }
 
-    const { access_token, store_id, scope } = data.data || {};
-    if (!access_token || !store_id) {
+    const { access_token, store_id: storeIdRaw, scope } = data.data || {};
+    if (!access_token || !storeIdRaw) {
       console.error('Respuesta inesperada del token endpoint:', data);
       return res.status(500).send('Respuesta inesperada de TiendaNegocio.');
     }
+    const store_id = String(storeIdRaw); // TN lo manda como número, no string
 
     await guardarTienda(store_id, access_token, scope);
     console.log(`✅ Tienda ${store_id} instaló Aviso de Stock.`);
