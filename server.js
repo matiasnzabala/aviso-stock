@@ -497,7 +497,7 @@ app.get('/widget.js', (req, res) => {
     return contenedor;
   }
 
-  function render(contenedor, producto) {
+  function renderSinStock(contenedor, producto) {
     contenedor.innerHTML =
       '<div>' +
         '<p style="margin:0 0 8px;font-size:0.9rem;color:#555;">Sin stock. Te avisamos por mail cuando vuelva.</p>' +
@@ -534,12 +534,24 @@ app.get('/widget.js', (req, res) => {
     });
   }
 
+  function renderStockBajo(contenedor, producto) {
+    contenedor.innerHTML =
+      '<p style="margin:0;font-size:0.85rem;font-weight:700;color:#B34700;background:#FFF3E6;border:1px solid #FFD8AD;border-radius:8px;padding:8px 12px;display:inline-block;">' +
+        '⚠️ ¡Quedan solo ' + producto.stock + ' unidades!' +
+      '</p>';
+  }
+
   fetch(BASE + '/product-info/' + storeId + '?handle=' + encodeURIComponent(handle))
     .then(function (r) { return r.json(); })
     .then(function (producto) {
       if (!producto || !producto.stock_management) return; // no controla stock, no mostramos nada
-      if (producto.stock > 0) return; // hay stock, no mostramos nada
-      render(crearContenedor(), producto);
+      if (producto.stock <= 0) {
+        if (producto.mostrar_sin_stock) renderSinStock(crearContenedor(), producto);
+        return;
+      }
+      if (producto.mostrar_stock_bajo && producto.stock <= producto.umbral_stock_bajo) {
+        renderStockBajo(crearContenedor(), producto);
+      }
     })
     .catch(function () {});
 })();
@@ -548,13 +560,19 @@ app.get('/widget.js', (req, res) => {
 
 app.get('/product-info/:storeId', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store');
   const { handle } = req.query;
   if (!handle) return res.status(400).json({ error: 'falta handle' });
   const tienda = await leerTienda(req.params.storeId);
   if (!tienda || !tieneAccesoActivo(tienda) || tienda.activo === false) return res.status(403).json({ error: 'app desactivada o trial vencido' });
   const producto = await leerProductoPorHandle(req.params.storeId, handle);
   if (!producto) return res.status(404).json({ error: 'producto no encontrado en cache' });
-  res.json(producto);
+  res.json({
+    ...producto,
+    mostrar_sin_stock: tienda.mostrar_sin_stock !== false,
+    mostrar_stock_bajo: tienda.mostrar_stock_bajo === true,
+    umbral_stock_bajo: tienda.umbral_stock_bajo || 5,
+  });
 });
 
 app.post('/suscribir/:storeId', async (req, res) => {
@@ -652,8 +670,14 @@ app.post('/admin/:storeId', async (req, res) => {
   if (!tiendasPermitidas.includes(storeId)) {
     return res.status(403).send('No autorizado. Abrí la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
   }
-  const { error } = await supabase.from('stock_tiendas').update({ activo: req.body.activo === 'on' }).eq('store_id', storeId);
-  if (error) console.error('Error actualizando activo:', error);
+  const umbralStockBajo = Math.max(1, Math.min(50, parseInt(req.body.umbral_stock_bajo, 10) || 5));
+  const { error } = await supabase.from('stock_tiendas').update({
+    activo: req.body.activo === 'on',
+    mostrar_sin_stock: req.body.mostrar_sin_stock === 'on',
+    mostrar_stock_bajo: req.body.mostrar_stock_bajo === 'on',
+    umbral_stock_bajo: umbralStockBajo,
+  }).eq('store_id', storeId);
+  if (error) console.error('Error actualizando config:', error);
   res.redirect(`/admin/${storeId}`);
 });
 
@@ -771,7 +795,9 @@ app.get('/admin/:storeId', async (req, res) => {
   .admin-footer .brand a{ color:var(--ink); font-weight:700; text-decoration:underline; }
   .admin-footer .soporte{ display:inline-flex; align-items:center; gap:6px; background:var(--mint); color:var(--ink); border:2px solid var(--ink); padding:8px 16px; border-radius:999px; font-weight:700; font-size:0.82rem; box-shadow:var(--sh-sm); text-decoration:none; transition:transform .1s ease; }
   .admin-footer .soporte:hover{ transform:translate(-1px,-1px); }
-  .settings-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:18px 22px; margin-bottom:24px; }
+  .settings-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:18px 22px; margin-bottom:24px; display:flex; flex-direction:column; align-items:flex-start; gap:14px; }
+  .umbral-label{ display:flex; flex-direction:column; gap:6px; font-size:0.85rem; color:var(--ink-dim); font-weight:600; }
+  .umbral-label input{ width:100px; background:var(--bg-alt); border:2px solid var(--ink); border-radius:8px; padding:8px 10px; font-size:0.9rem; font-family:'Space Grotesk', sans-serif; font-weight:600; }
   .check-row{ display:flex; align-items:center; gap:10px; }
   .check-row input{ width:auto; }
   .check-row label{ margin:0; font-weight:700; }
@@ -807,10 +833,28 @@ app.get('/admin/:storeId', async (req, res) => {
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
     <form class="settings-card" method="POST" action="/admin/${storeId}">
       <label class="switch-wrap">
-        <input type="checkbox" name="activo" ${tienda.activo !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'Avisos de stock activos' : 'Avisos de stock desactivados'" />
+        <input type="checkbox" name="activo" ${tienda.activo !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'App activa' : 'App desactivada'" />
         <span class="switch-track"></span>
-        <span class="switch-label">${tienda.activo !== false ? 'Avisos de stock activos' : 'Avisos de stock desactivados'}</span>
+        <span class="switch-label">${tienda.activo !== false ? 'App activa' : 'App desactivada'}</span>
       </label>
+
+      <label class="switch-wrap">
+        <input type="checkbox" name="mostrar_sin_stock" ${tienda.mostrar_sin_stock !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'Avisame cuando vuelva: activo' : 'Avisame cuando vuelva: desactivado'" />
+        <span class="switch-track"></span>
+        <span class="switch-label">${tienda.mostrar_sin_stock !== false ? 'Avisame cuando vuelva: activo' : 'Avisame cuando vuelva: desactivado'}</span>
+      </label>
+
+      <label class="switch-wrap">
+        <input type="checkbox" name="mostrar_stock_bajo" ${tienda.mostrar_stock_bajo === true ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'Quedan pocas unidades: activo' : 'Quedan pocas unidades: desactivado'" />
+        <span class="switch-track"></span>
+        <span class="switch-label">${tienda.mostrar_stock_bajo === true ? 'Quedan pocas unidades: activo' : 'Quedan pocas unidades: desactivado'}</span>
+      </label>
+
+      <label class="umbral-label">
+        <span>Mostrar "quedan pocas unidades" cuando el stock sea igual o menor a:</span>
+        <input type="number" name="umbral_stock_bajo" min="1" max="50" value="${tienda.umbral_stock_bajo || 5}" />
+      </label>
+
       <button type="submit">Guardar</button>
     </form>
     <table>
