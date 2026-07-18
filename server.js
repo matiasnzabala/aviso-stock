@@ -551,7 +551,7 @@ app.get('/product-info/:storeId', async (req, res) => {
   const { handle } = req.query;
   if (!handle) return res.status(400).json({ error: 'falta handle' });
   const tienda = await leerTienda(req.params.storeId);
-  if (!tienda || !tieneAccesoActivo(tienda)) return res.status(403).json({ error: 'trial vencido' });
+  if (!tienda || !tieneAccesoActivo(tienda) || tienda.activo === false) return res.status(403).json({ error: 'app desactivada o trial vencido' });
   const producto = await leerProductoPorHandle(req.params.storeId, handle);
   if (!producto) return res.status(404).json({ error: 'producto no encontrado en cache' });
   res.json(producto);
@@ -645,6 +645,17 @@ function generarAppsHTML() {
     <div class="section-label">Más herramientas para tu tienda</div>
     <div class="apps-grid">${cards}</div>`;
 }
+
+app.post('/admin/:storeId', async (req, res) => {
+  const storeId = req.params.storeId;
+  const tiendasPermitidas = leerTiendasDeCookie(req);
+  if (!tiendasPermitidas.includes(storeId)) {
+    return res.status(403).send('No autorizado. Abrí la app desde el panel de TiendaNegocio (Aplicaciones → Aviso de Stock).');
+  }
+  const { error } = await supabase.from('stock_tiendas').update({ activo: req.body.activo === 'on' }).eq('store_id', storeId);
+  if (error) console.error('Error actualizando activo:', error);
+  res.redirect(`/admin/${storeId}`);
+});
 
 app.get('/admin/:storeId', async (req, res) => {
   const storeId = req.params.storeId;
@@ -760,6 +771,13 @@ app.get('/admin/:storeId', async (req, res) => {
   .admin-footer .brand a{ color:var(--ink); font-weight:700; text-decoration:underline; }
   .admin-footer .soporte{ display:inline-flex; align-items:center; gap:6px; background:var(--mint); color:var(--ink); border:2px solid var(--ink); padding:8px 16px; border-radius:999px; font-weight:700; font-size:0.82rem; box-shadow:var(--sh-sm); text-decoration:none; transition:transform .1s ease; }
   .admin-footer .soporte:hover{ transform:translate(-1px,-1px); }
+  .settings-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:18px 22px; margin-bottom:24px; }
+  .check-row{ display:flex; align-items:center; gap:10px; }
+  .check-row input{ width:auto; }
+  .check-row label{ margin:0; font-weight:700; }
+  button{ margin-top:14px; background:var(--pink); color:var(--ink); border:2px solid var(--ink); padding:10px 20px; border-radius:999px; font-weight:700; cursor:pointer; box-shadow:var(--sh-sm); transition:transform .1s ease, box-shadow .1s ease; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; }
+  button:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0px 0px var(--ink); }
+  button:active{ transform:translate(2px,2px); box-shadow:0px 0px 0px 0px var(--ink); }
 </style>
 </head>
 <body>
@@ -768,6 +786,13 @@ app.get('/admin/:storeId', async (req, res) => {
     <h1>Productos esperados</h1>
     ${bannerTrial}
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
+    <form class="settings-card" method="POST" action="/admin/${storeId}">
+      <div class="check-row">
+        <input type="checkbox" id="activo" name="activo" ${tienda.activo !== false ? 'checked' : ''} />
+        <label for="activo">Avisos de stock activos</label>
+      </div>
+      <button type="submit">Guardar</button>
+    </form>
     <table>
       <thead><tr><th>Producto</th><th>Stock actual</th><th>Anotados</th><th></th></tr></thead>
       <tbody>${filas}</tbody>
