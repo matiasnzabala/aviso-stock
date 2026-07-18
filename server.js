@@ -775,6 +775,25 @@ app.get('/admin/:storeId', async (req, res) => {
   .check-row{ display:flex; align-items:center; gap:10px; }
   .check-row input{ width:auto; }
   .check-row label{ margin:0; font-weight:700; }
+  .switch-wrap{
+    display:flex; align-items:center; gap:10px; cursor:pointer;
+    background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm);
+    border-radius:999px; padding:10px 16px 10px 10px; flex:none; width:fit-content;
+  }
+  .switch-wrap input{ display:none; }
+  .switch-track{
+    width:40px; height:22px; border-radius:999px; background:#e3ddc9;
+    border:2px solid var(--ink);
+    position:relative; transition:background .2s ease; flex:none;
+  }
+  .switch-track::after{
+    content:''; position:absolute; top:1px; left:1px;
+    width:16px; height:16px; border-radius:50%; background:var(--ink);
+    transition:transform .2s ease;
+  }
+  .switch-wrap input:checked + .switch-track{ background:var(--mint); }
+  .switch-wrap input:checked + .switch-track::after{ transform:translateX(18px); }
+  .switch-label{ font-size:0.88rem; font-weight:700; white-space:nowrap; }
   button{ margin-top:14px; background:var(--pink); color:var(--ink); border:2px solid var(--ink); padding:10px 20px; border-radius:999px; font-weight:700; cursor:pointer; box-shadow:var(--sh-sm); transition:transform .1s ease, box-shadow .1s ease; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; }
   button:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0px 0px var(--ink); }
   button:active{ transform:translate(2px,2px); box-shadow:0px 0px 0px 0px var(--ink); }
@@ -787,10 +806,11 @@ app.get('/admin/:storeId', async (req, res) => {
     ${bannerTrial}
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
     <form class="settings-card" method="POST" action="/admin/${storeId}">
-      <div class="check-row">
-        <input type="checkbox" id="activo" name="activo" ${tienda.activo !== false ? 'checked' : ''} />
-        <label for="activo">Avisos de stock activos</label>
-      </div>
+      <label class="switch-wrap">
+        <input type="checkbox" name="activo" ${tienda.activo !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'Avisos de stock activos' : 'Avisos de stock desactivados'" />
+        <span class="switch-track"></span>
+        <span class="switch-label">${tienda.activo !== false ? 'Avisos de stock activos' : 'Avisos de stock desactivados'}</span>
+      </label>
       <button type="submit">Guardar</button>
     </form>
     <table>
