@@ -439,6 +439,34 @@ app.get('/cron/sync', (req, res) => {
 });
 
 // ---------------------------------------------------------------------
+// ESTADÍSTICAS — el widget manda un evento 'vista' cada vez que se
+// muestra el badge de sin-stock o stock-bajo (fire-and-forget). Las
+// conversiones ya se miden con stock_suscripciones.
+// ---------------------------------------------------------------------
+app.options('/track', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(204).end();
+});
+
+app.post('/track', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.status(204).end();
+  const { storeId, tipo } = req.body || {};
+  if (!storeId || tipo !== 'vista') return;
+  const { error } = await supabase.from('aviso_eventos').insert({ store_id: storeId, tipo });
+  if (error) console.error('Error guardando evento:', error);
+});
+
+async function contarVistas(storeId) {
+  const { count, error } = await supabase
+    .from('aviso_eventos').select('*', { count: 'exact', head: true }).eq('store_id', storeId);
+  if (error) { console.error('Error contando vistas:', error); return 0; }
+  return count || 0;
+}
+
+// ---------------------------------------------------------------------
 // Script GLOBAL (se pega UNA VEZ en el código personalizado del theme,
 // igual que el embed.js de Ruleta — TN no permite código por plantilla
 // específica). Corre en todas las páginas, solo actúa si es un producto
@@ -463,6 +491,14 @@ app.get('/widget.js', (req, res) => {
   if (!storeId) return;
 
   var BASE = '${APP_BASE_URL}';
+  function track(tipo) {
+    try {
+      fetch(BASE + '/track', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeId: storeId, tipo: tipo }), keepalive: true,
+      });
+    } catch (e) {}
+  }
 
   var m = window.location.pathname.match(/\\/producto\\/([^\\/?#]+)/);
   if (!m) return; // no es una página de producto, no hacemos nada
@@ -498,6 +534,7 @@ app.get('/widget.js', (req, res) => {
   }
 
   function renderSinStock(contenedor, producto) {
+    track('vista');
     contenedor.innerHTML =
       '<div>' +
         '<p style="margin:0 0 8px;font-size:0.9rem;color:#555;">Sin stock. Te avisamos por mail cuando vuelva.</p>' +
@@ -535,6 +572,7 @@ app.get('/widget.js', (req, res) => {
   }
 
   function renderStockBajo(contenedor, producto) {
+    track('vista');
     contenedor.innerHTML =
       '<p style="margin:0;font-size:0.85rem;font-weight:700;color:#B34700;background:#FFF3E6;border:1px solid #FFD8AD;border-radius:8px;padding:8px 12px;display:inline-block;">' +
         '⚠️ ¡Quedan solo ' + producto.stock + ' unidades!' +
@@ -712,6 +750,10 @@ app.get('/admin/:storeId', async (req, res) => {
   }
 
   const resumen = await resumenPorTienda(storeId);
+  const vistas = await contarVistas(storeId);
+  const totalSuscriptores = resumen.reduce((acc, p) => acc + (p.suscriptores || 0), 0);
+  const ctrAviso = vistas > 0 ? Math.round((totalSuscriptores / vistas) * 100) : 0;
+  const statsHTML = `<p class="subtitle">👁️ ${vistas} vista${vistas === 1 ? '' : 's'} · ✉️ ${totalSuscriptores} anotado${totalSuscriptores === 1 ? '' : 's'} · ${ctrAviso}% conversión</p>`;
 
   const filas = resumen
     .sort((a, b) => b.suscriptores - a.suscriptores)
@@ -831,6 +873,7 @@ app.get('/admin/:storeId', async (req, res) => {
     <h1>Productos esperados</h1>
     ${bannerTrial}
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
+    ${statsHTML}
     <form class="settings-card" method="POST" action="/admin/${storeId}">
       <label class="switch-wrap">
         <input type="checkbox" name="activo" ${tienda.activo !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'App activa' : 'App desactivada'" />
