@@ -367,9 +367,6 @@ app.get('/', (req, res) => {
 // ---------------------------------------------------------------------
 async function sincronizarTodasLasTiendas() {
   const tiendas = await listarTiendas();
-  if (tiendas.length === 1) {
-    return res.redirect(`/admin/${tiendas[0].store_id}`);
-  }
   const resumen = [];
 
   for (const tienda of tiendas) {
