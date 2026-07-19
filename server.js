@@ -519,6 +519,7 @@ app.get('/widget.js', (req, res) => {
     if (boton && boton.parentNode) {
       contenedor.style.cssText = 'margin-top:12px;font-family:sans-serif;max-width:360px;';
       boton.parentNode.insertBefore(contenedor, boton.nextSibling);
+      boton.style.display = 'none';
     } else {
       // No encontramos el botón de compra en el theme: tarjeta flotante
       // fija, chica, no tapa el resto de la página.
