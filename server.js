@@ -686,6 +686,21 @@ const APPS_CATALOGO = [
     descripcion: 'Barra que motiva a sumar productos al carrito para llegar al envío gratis.',
     icono: '🚚',
   },
+  {
+    nombre: 'Caja Sorpresa',
+    descripcion: 'Caja sorpresa de premios para captar leads y dar cupones a cambio de abrirla.',
+    icono: '🎁',
+  },
+  {
+    nombre: 'Popup Ventas',
+    descripcion: 'Popup de compras recientes para generar confianza en tiempo real.',
+    icono: '🛒',
+  },
+  {
+    nombre: 'Popup de Salida',
+    descripcion: 'Popup que detecta cuándo el visitante se va y le ofrece un cupón para que no abandone la tienda.',
+    icono: '👋',
+  },
 ];
 
 function generarAppsHTML() {
