@@ -778,7 +778,6 @@ app.get('/admin/:storeId', async (req, res) => {
   const vistas = await contarVistas(storeId);
   const totalSuscriptores = resumen.reduce((acc, p) => acc + (p.suscriptores || 0), 0);
   const ctrAviso = vistas > 0 ? Math.round((totalSuscriptores / vistas) * 100) : 0;
-  const statsHTML = `<p class="subtitle">👁️ ${vistas} vista${vistas === 1 ? '' : 's'} · ✉️ ${totalSuscriptores} anotado${totalSuscriptores === 1 ? '' : 's'} · ${ctrAviso}% conversión</p>`;
 
   const filas = resumen
     .sort((a, b) => b.suscriptores - a.suscriptores)
@@ -815,6 +814,22 @@ app.get('/admin/:storeId', async (req, res) => {
   .eyebrow{ font-family:'Space Mono', monospace; text-transform:uppercase; letter-spacing:0.1em; font-size:0.7rem; color:var(--pink); font-weight:700; display:block; margin-bottom:10px; }
   h1{ font-family:'Archivo Black', sans-serif; font-weight:400; text-transform:uppercase; font-size:1.5rem; margin-bottom:8px; }
   .subtitle{ color:var(--ink-dim); font-size:0.95rem; margin-bottom:28px; max-width:60ch; font-weight:500; }
+  .status-hero{
+    background:var(--bg-card); border:2px solid var(--ink); border-radius:16px;
+    box-shadow:var(--sh-sm); padding:22px 24px; margin-bottom:8px;
+  }
+  .status-hero-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .status-hero-stats-label{
+    font-family:'Space Mono', monospace; text-transform:uppercase; letter-spacing:0.08em;
+    font-size:0.72rem; font-weight:700; color:var(--ink-dim); margin-top:20px;
+  }
+  .status-hero-stats{ display:flex; gap:12px; margin-top:8px; flex-wrap:wrap; }
+  .stat-tile{
+    flex:1; min-width:100px; background:var(--bg); border:2px solid var(--ink); border-radius:12px;
+    padding:12px 14px; display:flex; flex-direction:column; gap:2px;
+  }
+  .stat-num{ font-family:'Archivo Black', sans-serif; font-size:1.6rem; line-height:1; }
+  .stat-label{ font-family:'Space Mono', monospace; text-transform:uppercase; letter-spacing:0.06em; font-size:0.68rem; color:var(--ink-dim); font-weight:700; }
   table{ width:100%; border-collapse:collapse; background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; overflow:hidden; }
   th{ text-align:left; font-family:'Space Mono', monospace; text-transform:uppercase; font-size:0.7rem; letter-spacing:0.06em; color:var(--ink-dim); font-weight:700; padding:14px 16px; border-bottom:2px solid var(--ink); }
   td{ padding:14px 16px; border-bottom:1px solid #e3ddc9; font-size:0.92rem; }
@@ -887,25 +902,35 @@ app.get('/admin/:storeId', async (req, res) => {
   .switch-wrap input:checked + .switch-track{ background:var(--mint); }
   .switch-wrap input:checked + .switch-track::after{ transform:translateX(18px); }
   .switch-label{ font-size:0.88rem; font-weight:700; white-space:nowrap; }
-  button{ margin-top:14px; background:var(--pink); color:var(--ink); border:2px solid var(--ink); padding:10px 20px; border-radius:999px; font-weight:700; cursor:pointer; box-shadow:var(--sh-sm); transition:transform .1s ease, box-shadow .1s ease; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; }
+  button{ width:100%; margin-top:14px; background:var(--pink); color:var(--ink); border:2px solid var(--ink); padding:10px 20px; border-radius:999px; font-weight:700; cursor:pointer; box-shadow:var(--sh-sm); transition:transform .1s ease, box-shadow .1s ease; font-family:'Space Grotesk', sans-serif; font-size:0.88rem; }
   button:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0px 0px var(--ink); }
   button:active{ transform:translate(2px,2px); box-shadow:0px 0px 0px 0px var(--ink); }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <span class="eyebrow">Aviso de Stock · Tienda ${storeId}</span>
-    <h1>Productos esperados</h1>
     ${bannerTrial}
+    <div class="status-hero">
+      <div class="status-hero-top">
+        <div>
+          <span class="eyebrow">Aviso de Stock · Tienda ${storeId}</span>
+          <h1>Productos esperados</h1>
+        </div>
+        <label class="switch-wrap">
+          <input type="checkbox" name="activo" form="form-config" ${tienda.activo !== false ? 'checked' : ''} onchange="actualizarEstado(this)" />
+          <span class="switch-track"></span>
+          <span class="switch-label" id="switch-label-txt">${tienda.activo !== false ? 'App activa' : 'App desactivada'}</span>
+        </label>
+      </div>
+      <div class="status-hero-stats-label">Estadísticas</div>
+      <div class="status-hero-stats">
+        <div class="stat-tile"><span class="stat-num">${vistas}</span><span class="stat-label">Vistas</span></div>
+        <div class="stat-tile"><span class="stat-num">${totalSuscriptores}</span><span class="stat-label">Anotado${totalSuscriptores === 1 ? '' : 's'}</span></div>
+        <div class="stat-tile"><span class="stat-num">${ctrAviso}%</span><span class="stat-label">Conversión</span></div>
+      </div>
+    </div>
     <p class="subtitle">Gente anotada para que le avisemos cuando vuelva el stock. Se actualiza solo, cada vez que cargues stock en TiendaNegocio.</p>
-    ${statsHTML}
-    <form class="settings-card" method="POST" action="/admin/${storeId}">
-      <label class="switch-wrap">
-        <input type="checkbox" name="activo" ${tienda.activo !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'App activa' : 'App desactivada'" />
-        <span class="switch-track"></span>
-        <span class="switch-label">${tienda.activo !== false ? 'App activa' : 'App desactivada'}</span>
-      </label>
-
+    <form class="settings-card" method="POST" action="/admin/${storeId}" id="form-config">
       <label class="switch-wrap">
         <input type="checkbox" name="mostrar_sin_stock" ${tienda.mostrar_sin_stock !== false ? 'checked' : ''} onchange="this.nextElementSibling.nextElementSibling.textContent = this.checked ? 'Avisame cuando vuelva: activo' : 'Avisame cuando vuelva: desactivado'" />
         <span class="switch-track"></span>
@@ -939,6 +964,11 @@ app.get('/admin/:storeId', async (req, res) => {
       <a class="soporte" href="https://wa.me/5490000000000" target="_blank" rel="noopener">💬 Soporte por WhatsApp</a>
     </div>
   </div>
+  <script>
+    function actualizarEstado(checkbox) {
+      document.getElementById('switch-label-txt').textContent = checkbox.checked ? 'App activa' : 'App desactivada';
+    }
+  </script>
 </body>
 </html>`);
 });
