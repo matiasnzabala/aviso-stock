@@ -911,7 +911,7 @@ app.get('/admin/:storeId', async (req, res) => {
       <div class="status-hero-top">
         <div>
           <span class="eyebrow">Aviso de Stock · Tienda ${storeId}</span>
-          <h1>Productos esperados</h1>
+          <h1>Configurá tus avisos</h1>
         </div>
         <label class="switch-wrap">
           <input type="checkbox" name="activo" form="form-config" ${tienda.activo !== false ? 'checked' : ''} onchange="actualizarEstado(this)" />
