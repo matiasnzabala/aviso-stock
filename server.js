@@ -701,6 +701,16 @@ const APPS_CATALOGO = [
     descripcion: 'Popup que detecta cuándo el visitante se va y le ofrece un cupón para que no abandone la tienda.',
     icono: '👋',
   },
+  {
+    nombre: 'Venta Inteligente',
+    descripcion: 'Cross-sell y upsell automáticos para subir el ticket promedio.',
+    icono: '🧠',
+  },
+  {
+    nombre: 'Cuenta Regresiva',
+    descripcion: 'Timer de urgencia para ofertas, que motiva a comprar antes de que se acabe el tiempo.',
+    icono: '⏳',
+  },
 ];
 
 function generarAppsHTML() {
