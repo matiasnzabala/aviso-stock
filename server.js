@@ -854,8 +854,13 @@ app.get('/admin/:storeId', async (req, res) => {
   }
   .fila-emails{ color:var(--ink-dim); font-size:0.8rem; font-family:'Space Mono', monospace; padding-top:0 !important; padding-bottom:16px !important; }
   .install-card{ background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm); border-radius:16px; padding:20px 24px; margin-top:28px; }
-  .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; font-weight:500; }
+  .install-text{ color:var(--ink-dim); font-size:0.88rem; line-height:1.6; font-weight:500; margin-bottom:14px; }
   .install-text code{ background:var(--canary); padding:2px 6px; border-radius:4px; border:1px solid var(--ink); font-family:'Space Mono', monospace; font-size:0.8rem; color:var(--ink); }
+  .code-box{ background:var(--bg-alt); border:2px solid var(--ink); border-radius:10px; padding:12px 14px; }
+  .code-box pre{ margin:0 0 10px; font-family:'Space Mono', monospace; font-size:0.78rem; color:var(--ink); overflow-x:auto; white-space:pre; }
+  .btn-copy{ display:block; width:100%; background:var(--pink); color:var(--ink); border:2px solid var(--ink); padding:8px 16px; border-radius:999px; font-size:0.82rem; font-weight:700; cursor:pointer; font-family:'Space Grotesk', sans-serif; box-shadow:var(--sh-sm); transition:transform .1s ease, box-shadow .1s ease; }
+  .btn-copy:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0px 0px var(--ink); }
+  .btn-copy:active{ transform:translate(2px,2px); box-shadow:0px 0px 0px 0px var(--ink); }
   .section-label{ font-family:'Space Mono', monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim); margin-top:28px; margin-bottom:12px; }
   .apps-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
   .app-card{
@@ -958,8 +963,11 @@ app.get('/admin/:storeId', async (req, res) => {
       <tbody>${filas}</tbody>
     </table>
     <div class="install-card">
-      <p class="install-text">Pegá esto UNA VEZ en el código personalizado de tu tema (el mismo lugar donde va cualquier script global, antes de <code>&lt;/body&gt;</code>). Se muestra solo en páginas de producto sin stock, no hace falta tocar nada más:<br><br>
-      <code>&lt;script src="${APP_BASE_URL}/widget.js?store=${storeId}" defer&gt;&lt;/script&gt;</code></p>
+      <p class="install-text">Pegá este código una sola vez en tu tienda: Administración → Configuraciones → Código Externo → <code>Códigos dentro del &lt;head&gt;</code>. Se muestra solo en páginas de producto sin stock, no hace falta tocar nada más.</p>
+      <div class="code-box">
+        <pre id="snippet-code">&lt;script src="${APP_BASE_URL}/widget.js?store=${storeId}" defer&gt;&lt;/script&gt;</pre>
+        <button type="button" class="btn-copy" onclick="copiarSnippet()">Copiar</button>
+      </div>
     </div>
     ${generarAppsHTML()}
     <div class="admin-footer">
@@ -970,6 +978,15 @@ app.get('/admin/:storeId', async (req, res) => {
   <script>
     function actualizarEstado(checkbox) {
       document.getElementById('switch-label-txt').textContent = checkbox.checked ? 'App activa' : 'App desactivada';
+    }
+    function copiarSnippet() {
+      const texto = document.getElementById('snippet-code').textContent;
+      navigator.clipboard.writeText(texto).then(() => {
+        const btn = document.querySelector('.btn-copy');
+        const original = btn.textContent;
+        btn.textContent = '¡Copiado!';
+        setTimeout(() => { btn.textContent = original; }, 1800);
+      });
     }
   </script>
 </body>
