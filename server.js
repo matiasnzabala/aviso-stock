@@ -709,6 +709,11 @@ const APPS_CATALOGO = [
     descripcion: 'Timer de urgencia para ofertas, que motiva a comprar antes de que se acabe el tiempo.',
     icono: '⏳',
   },
+  {
+    nombre: 'Tragamonedas',
+    descripcion: 'Máquina tragamonedas de premios para captar leads y dar cupones al instante.',
+    icono: '🎰',
+  },
 ];
 
 function generarAppsHTML() {
