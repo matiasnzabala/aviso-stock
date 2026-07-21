@@ -481,10 +481,14 @@ app.get('/widget.js', (req, res) => {
     }
     return null;
   })();
-  if (!scriptTag) return;
-
-  var params = new URLSearchParams(scriptTag.src.split('?')[1] || '');
-  var storeId = params.get('store');
+  var storeId = null;
+  if (scriptTag) {
+    var params = new URLSearchParams(scriptTag.src.split('?')[1] || '');
+    storeId = params.get('store');
+  }
+  if (!storeId && window.TN && window.TN.store && window.TN.store.id) {
+    storeId = window.TN.store.id;
+  }
   if (!storeId) return;
 
   var BASE = '${APP_BASE_URL}';
