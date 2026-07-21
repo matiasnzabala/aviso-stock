@@ -967,13 +967,6 @@ app.get('/admin/:storeId', async (req, res) => {
       <thead><tr><th>Producto</th><th>Stock actual</th><th>Anotados</th><th></th></tr></thead>
       <tbody>${filas}</tbody>
     </table>
-    <div class="install-card">
-      <p class="install-text">Pegá este código una sola vez en tu tienda: Administración → Configuraciones → Código Externo → <code>Códigos dentro del &lt;head&gt;</code>. Se muestra solo en páginas de producto sin stock, no hace falta tocar nada más.</p>
-      <div class="code-box">
-        <pre id="snippet-code">&lt;script src="${APP_BASE_URL}/widget.js?store=${storeId}" defer&gt;&lt;/script&gt;</pre>
-        <button type="button" class="btn-copy" onclick="copiarSnippet()">Copiar</button>
-      </div>
-    </div>
     ${generarAppsHTML()}
     <div class="admin-footer">
       <span class="brand">Una app de <a href="https://hacecrecertutienda.com" target="_blank" rel="noopener">hacecrecertutienda.com</a></span>
