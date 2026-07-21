@@ -862,7 +862,8 @@ app.get('/admin/:storeId', async (req, res) => {
   .btn-copy:hover{ transform:translate(-1px,-1px); box-shadow:5px 5px 0px 0px var(--ink); }
   .btn-copy:active{ transform:translate(2px,2px); box-shadow:0px 0px 0px 0px var(--ink); }
   .section-label{ font-family:'Space Mono', monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-dim); margin-top:28px; margin-bottom:12px; }
-  .apps-grid{ display:grid; grid-template-columns:1fr; gap:12px; }
+  .apps-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; }
+  @media (max-width:640px){ .apps-grid{ grid-template-columns:1fr; } }
   .app-card{
     display:flex; gap:14px; align-items:flex-start;
     background:var(--bg-card); border:2px solid var(--ink); box-shadow:var(--sh-sm);
