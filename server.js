@@ -138,7 +138,7 @@ async function suscribirWebhookBorrado(storeId, accessToken) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': accessToken,
+        'Authorization': `Bearer ${accessToken}`,
         'User-Agent': USER_AGENT,
       },
       body: JSON.stringify({ url: `${APP_BASE_URL}/webhooks/app-deleted`, event: 'app/deleted' }),
