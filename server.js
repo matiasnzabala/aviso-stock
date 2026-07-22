@@ -977,37 +977,6 @@ app.get('/admin/:storeId', async (req, res) => {
     function actualizarEstado(checkbox) {
       document.getElementById('switch-label-txt').textContent = checkbox.checked ? 'App activa' : 'App desactivada';
     }
-    function copiarSnippet() {
-      const texto = document.getElementById('snippet-code').textContent;
-      const btn = document.querySelector('.btn-copy');
-      const mostrarCopiado = () => {
-        const original = btn.textContent;
-        btn.textContent = '¡Copiado!';
-        setTimeout(() => { btn.textContent = original; }, 1800);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(texto).then(mostrarCopiado).catch(() => copiarConFallback(texto, mostrarCopiado));
-      } else {
-        copiarConFallback(texto, mostrarCopiado);
-      }
-    }
-
-    function copiarConFallback(texto, onOk) {
-      const textarea = document.createElement('textarea');
-      textarea.value = texto;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        onOk();
-      } catch (e) {
-        alert('No se pudo copiar automáticamente. Seleccioná el texto y copialo manualmente.');
-      }
-      document.body.removeChild(textarea);
-    }
   </script>
 </body>
 </html>`);
